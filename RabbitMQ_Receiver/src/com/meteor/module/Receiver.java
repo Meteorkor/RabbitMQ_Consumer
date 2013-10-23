@@ -16,6 +16,9 @@ public class Receiver {
 	String basic_queue_name = "basicQ";
 	String durable_queue_name = "durableQ";
 	
+	String fanout_queue_name = "fanout_durableQ";
+	
+	
 	int prefetchCount = 10;
 	/*
 	In order to defeat that we can use the basicQos method with 
@@ -39,8 +42,8 @@ public class Receiver {
 	 Two things are required to make sure that messages aren't lost: 
 	 we need to mark both the queue and messages as durable.
 	*/
-	Boolean autoAck = false;
-	//Boolean autoAck = true;
+	//Boolean autoAck = false;
+	Boolean autoAck = true;
 	/*
 	If a consumer dies without sending an ack, 
 	RabbitMQ will understand that a message wasn't processed fully 
@@ -61,6 +64,12 @@ public class Receiver {
 	Using this code we can be sure that even if you kill a worker using 
 	CTRL+C while it was processing a message, nothing will be lost. 
 	Soon after the worker dies all unacknowledged messages will be redelivered.
+	*/
+	//channel.queueBind(qn, "di_logs", "critical");
+	/*
+	channel.queueBind(qn, "di_logs", "critical");
+	"critical" Àº Serverity
+	
 	*/
 	public Receiver(String host){
 		
@@ -116,21 +125,10 @@ public class Receiver {
 			
 			channel.queueDeclare(basic_queue_name,durable,false,false,null);
 			System.out.println("Waiting for messages");
-		
-			
 			
 			QueueingConsumer consumer = new QueueingConsumer(channel);
 			
-			
-			
-			
-			
-			
 			channel.basicConsume( basic_queue_name, autoAck, consumer);
-			
-			
-			
-				
 			
 			//while(true){
 				QueueingConsumer.Delivery delivery = consumer.nextDelivery();
@@ -165,26 +163,15 @@ public class Receiver {
 			Connection conn = cf.newConnection();
 			Channel channel = conn.createChannel();
 			
-			
-			
 			channel.queueDeclare(durable_queue_name,durable,false,false,null);
 			System.out.println("Waiting for messages");
-		
-			
 			
 			QueueingConsumer consumer = new QueueingConsumer(channel);
 			
-			
-			//channel.basicQos(prefetchCount);
-			
-			
+			channel.basicQos(prefetchCount);
 			
 			channel.basicConsume( durable_queue_name, autoAck, consumer);
-			
-			
-			
-				
-			
+	
 			//while(true){}
 				QueueingConsumer.Delivery delivery = consumer.nextDelivery();
 				message = new String(delivery.getBody());
@@ -206,5 +193,128 @@ public class Receiver {
 		
 	}
 	
+
+	public void fanout_durable_acknowledged_receiver(){
+		String message;
+		ConnectionFactory cf= new ConnectionFactory();
+		cf.setHost(host);
+		
+		try {
+			Connection conn = cf.newConnection();
+			Channel channel = conn.createChannel();
+			
+			//channel.queueDeclare(fanout_queue_name,durable,false,false,null);
+			System.out.println("Waiting for messages");
+			
+			QueueingConsumer consumer = new QueueingConsumer(channel);
+			
+			channel.basicQos(prefetchCount);
+			
+			
+			channel.exchangeDeclare("logs", "fanout");
+			String qn = channel.queueDeclare().getQueue();
+			channel.queueBind(qn, "logs", "aaa");
+			
+			channel.basicConsume( qn, autoAck, consumer);
+	
+			while(true){
+				QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+				message = new String(delivery.getBody());
+				System.out.println("Received : " + message);
+				/*
+				System.out.println(delivery.getEnvelope());
+				System.out.println(delivery.getEnvelope().getDeliveryTag());
+				System.out.println(delivery.getEnvelope().getExchange());
+				System.out.println(delivery.getProperties());
+				*/
+				//channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
+			System.out.println(delivery.getEnvelope().getRoutingKey());
+			}
+			
+		} catch (IOException | ShutdownSignalException | ConsumerCancelledException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
+	public void direct_durable_acknowledged_receiver(){
+		String message;
+		ConnectionFactory cf= new ConnectionFactory();
+		cf.setHost(host);
+		
+		try {
+			Connection conn = cf.newConnection();
+			Channel channel = conn.createChannel();
+			
+			//channel.queueDeclare(fanout_queue_name,durable,false,false,null);
+			System.out.println("Waiting for messages");
+			
+			QueueingConsumer consumer = new QueueingConsumer(channel);
+			
+			channel.basicQos(prefetchCount);
+
+			
+			channel.exchangeDeclare("di_logs", "direct");
+			String qn = channel.queueDeclare().getQueue();
+			channel.queueBind(qn, "di_logs", "critical");
+			//Serverity
+			channel.basicConsume( qn, autoAck, consumer);
+	
+			while(true){
+				QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+				message = new String(delivery.getBody());
+				System.out.println("Received : " + message);
+				
+				System.out.println(delivery.getEnvelope().getRoutingKey());
+			}
+			
+		} catch (IOException | ShutdownSignalException | ConsumerCancelledException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
+
+	public void topic_durable_acknowledged_receiver(){
+		String message;
+		ConnectionFactory cf= new ConnectionFactory();
+		cf.setHost(host);
+		
+		try {
+			Connection conn = cf.newConnection();
+			Channel channel = conn.createChannel();
+			
+			//channel.queueDeclare(fanout_queue_name,durable,false,false,null);
+			System.out.println("Waiting for messages");
+			
+			QueueingConsumer consumer = new QueueingConsumer(channel);
+			
+			channel.basicQos(prefetchCount);
+
+			
+			channel.exchangeDeclare("topic_logs", "topic");
+			String qn = channel.queueDeclare().getQueue();
+			//channel.queueBind(qn, "topic_logs", "critical");
+			channel.queueBind(qn, "topic_logs", "kim.i.*");
+			//Serverity
+			channel.basicConsume( qn, autoAck, consumer);
+	
+			while(true){
+				QueueingConsumer.Delivery delivery = consumer.nextDelivery();
+				message = new String(delivery.getBody());
+				System.out.println("Received : " + message);
+				
+				System.out.println(delivery.getEnvelope().getRoutingKey());
+			}
+			
+		} catch (IOException | ShutdownSignalException | ConsumerCancelledException | InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+	}
 	
 }
